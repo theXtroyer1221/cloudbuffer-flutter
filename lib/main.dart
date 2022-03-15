@@ -46,14 +46,17 @@ class City {
   final String country;
   final double temp;
   final double windSpeed;
+  final double pressure;
+  final double humidity;
 
-  const City({
-    required this.name,
-    required this.desc,
-    required this.country,
-    required this.temp,
-    required this.windSpeed,
-  });
+  const City(
+      {required this.name,
+      required this.desc,
+      required this.country,
+      required this.temp,
+      required this.windSpeed,
+      required this.pressure,
+      required this.humidity});
 
   factory City.fromJson(Map<String, dynamic> json) {
     return City(
@@ -62,6 +65,8 @@ class City {
       country: json['sys']["country"],
       temp: json['main']['temp'],
       windSpeed: json['wind']['speed'],
+      pressure: json['main']['pressure'],
+      humidity: json['main']['humidity'],
     );
   }
 }
@@ -77,6 +82,8 @@ Future<City> fetchWeather(search) async {
   }
 }
 
+late Future<City> futureCity = fetchWeather("london");
+
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
 
@@ -87,8 +94,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final _formKey = GlobalKey<FormState>();
 
-  String query = "22";
-  late Future<City> futureCity = fetchWeather("london");
+  String query = "";
 
   @override
   Widget build(BuildContext context) {
@@ -110,24 +116,6 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
           const SizedBox(
             height: 50,
-          ),
-          FutureBuilder<City>(
-            future: futureCity,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return Column(
-                  children: [
-                    Text(snapshot.data!.name),
-                    Text(snapshot.data!.desc),
-                    Text('${snapshot.data!.temp.round().toString()} °c'),
-                    Text('${snapshot.data!.windSpeed.toString()} m/s'),
-                  ],
-                );
-              } else if (snapshot.hasError) {
-                return Text('${snapshot.error}');
-              }
-              return const CircularProgressIndicator();
-            },
           ),
           SizedBox(
             width: 300,
@@ -157,7 +145,13 @@ class _HomePageState extends State<HomePage> {
                                         Text("Searching for the weather...")));
                             setState(() {
                               futureCity = fetchWeather(query);
+                              const WeatherDisplay();
                             });
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const WeatherDisplay()));
                           }
                         },
                         child: const Text("Submit"))
@@ -165,6 +159,63 @@ class _HomePageState extends State<HomePage> {
                 )),
           )
         ],
+      ),
+    );
+  }
+}
+
+class WeatherDisplay extends StatefulWidget {
+  const WeatherDisplay({Key? key}) : super(key: key);
+
+  @override
+  State<WeatherDisplay> createState() => WeatherDisplayState();
+}
+
+class WeatherDisplayState extends State<WeatherDisplay> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Searched Weather")),
+      body: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
+        child: FutureBuilder<City>(
+          future: futureCity,
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    "Weather in " + snapshot.data!.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 40),
+                  ),
+                  Text(snapshot.data!.desc,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 15)),
+                  const SizedBox(height: 30),
+                  Text(
+                    '${snapshot.data!.temp.round().toString()} °c',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 40),
+                  ),
+                  const SizedBox(height: 15),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Text('${snapshot.data!.windSpeed.toString()} m/s'),
+                      Text('${snapshot.data!.humidity.toString()}%'),
+                      Text('${snapshot.data!.pressure.toString()} hPa'),
+                    ],
+                  ),
+                ],
+              );
+            } else if (snapshot.hasError) {
+              return Text('${snapshot.error}');
+            }
+            return const CircularProgressIndicator();
+          },
+        ),
       ),
     );
   }
