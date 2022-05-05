@@ -22,3 +22,4 @@ doc/api/
 
 #special env variables
 /lib/secrets.dart
+*.env

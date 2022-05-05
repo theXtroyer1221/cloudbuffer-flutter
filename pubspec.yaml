@@ -10,7 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_dotenv: ^5.0.2
+  google_fonts: ^2.3.2
+  google_place: ^0.4.7
   http: ^0.13.4
+  weather_icons: ^3.0.0
 
 dev_dependencies:
   flutter_lints: ^1.0.0
@@ -24,6 +27,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - .env
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
   # For details regarding adding assets from package dependencies, see

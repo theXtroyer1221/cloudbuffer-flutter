@@ -1,11 +1,16 @@
 // ignore_for_file: avoid_print
-
+import 'dart:html';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'secrets.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:weather_icons/weather_icons.dart';
+import 'package:google_place/google_place.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load();
   runApp(const MyApp());
 }
 
@@ -42,6 +47,7 @@ class _MyAppState extends State<MyApp> {
 
 class City {
   final String name;
+  final String main;
   final String desc;
   final String country;
   final double temp;
@@ -51,6 +57,7 @@ class City {
 
   const City(
       {required this.name,
+      required this.main,
       required this.desc,
       required this.country,
       required this.temp,
@@ -61,6 +68,7 @@ class City {
   factory City.fromJson(Map<String, dynamic> json) {
     return City(
       name: json['name'],
+      main: json['weather'][0]['main'],
       desc: json['weather'][0]['description'],
       country: json['sys']["country"],
       temp: json['main']['temp'],
@@ -95,6 +103,7 @@ class _HomePageState extends State<HomePage> {
   final _formKey = GlobalKey<FormState>();
 
   String query = "";
+  List<AutocompletePrediction> predictions = [];
 
   @override
   Widget build(BuildContext context) {
@@ -127,13 +136,44 @@ class _HomePageState extends State<HomePage> {
                       decoration: const InputDecoration(
                           hintText: "Ex. London, New York, Paris",
                           labelText: "Search a city name"),
-                      onChanged: (value) => query = value,
+                      onChanged: (value) {
+                        if (value.isNotEmpty) {
+                          autoComplete(value);
+                        } else {
+                          if (predictions.isNotEmpty && mounted) {
+                            setState(() {
+                              predictions = [];
+                            });
+                          }
+                        }
+                      },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return "You cant leave the field empty";
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 50,
+                      child: Expanded(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: predictions.length,
+                          itemBuilder: (context, index) {
+                            return ListTile(
+                              leading: const CircleAvatar(
+                                child: Icon(
+                                  Icons.pin_drop,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              title: Text(predictions[index].description!),
+                            );
+                          },
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     ElevatedButton(
@@ -162,7 +202,28 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  void autoComplete(String input) async {
+    String apiKey = dotenv.get('API_KEY');
+    var googlePlace = GooglePlace(apiKey);
+    var result = await googlePlace.autocomplete.get("1600 Amphitheatre");
+    if (result != null && result.predictions != null && mounted) {
+      setState(() {
+        predictions = result.predictions!;
+      });
+    }
+  }
 }
+
+TextStyle mainHeader = GoogleFonts.montserrat(
+    textStyle: const TextStyle(
+  fontSize: 30,
+  fontWeight: FontWeight.w400,
+));
+
+TextStyle mainStyle = GoogleFonts.montserrat(
+    textStyle: const TextStyle(
+        fontSize: 50, fontWeight: FontWeight.w600, color: Color(0xFF283655)));
 
 class WeatherDisplay extends StatefulWidget {
   const WeatherDisplay({Key? key}) : super(key: key);
@@ -170,6 +231,11 @@ class WeatherDisplay extends StatefulWidget {
   @override
   State<WeatherDisplay> createState() => WeatherDisplayState();
 }
+
+DateTime now = DateTime.now();
+
+String convertedDateTime =
+    "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year.toString()}";
 
 class WeatherDisplayState extends State<WeatherDisplay> {
   @override
@@ -187,17 +253,33 @@ class WeatherDisplayState extends State<WeatherDisplay> {
                 children: [
                   Text(
                     "Weather in " + snapshot.data!.name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 40),
+                    style: mainStyle,
                   ),
-                  Text(snapshot.data!.desc,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 15)),
-                  const SizedBox(height: 30),
+                  Text(snapshot.data!.desc, style: mainHeader),
+                  const SizedBox(height: 5),
                   Text(
-                    '${snapshot.data!.temp.round().toString()} °c',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 40),
+                    "TODAY " + convertedDateTime,
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  Row(children: [
+                    const Icon(
+                      Icons.location_on_sharp,
+                      color: Colors.grey,
+                    ),
+                    Text(
+                      snapshot.data!.name + "," + snapshot.data!.country,
+                      style: const TextStyle(color: Colors.grey),
+                    )
+                  ]),
+                  const SizedBox(height: 30),
+                  Row(
+                    children: [
+                      const BoxedIcon(WeatherIcons.day_sunny),
+                      Text(
+                        '${snapshot.data!.temp.round().toString()}°c',
+                        style: mainStyle,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 15),
                   Row(
