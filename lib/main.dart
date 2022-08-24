@@ -1,5 +1,4 @@
 // ignore_for_file: avoid_print
-import 'dart:html';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'dart:convert';
@@ -50,6 +49,7 @@ class City {
   final String main;
   final String desc;
   final String country;
+  final String weatherIcon;
   final double temp;
   final double windSpeed;
   final double pressure;
@@ -60,6 +60,7 @@ class City {
       required this.main,
       required this.desc,
       required this.country,
+      required this.weatherIcon,
       required this.temp,
       required this.windSpeed,
       required this.pressure,
@@ -71,6 +72,7 @@ class City {
       main: json['weather'][0]['main'],
       desc: json['weather'][0]['description'],
       country: json['sys']["country"],
+      weatherIcon: json["weather"][0]["icon"],
       temp: json['main']['temp'],
       windSpeed: json['wind']['speed'],
       pressure: json['main']['pressure'],
@@ -100,10 +102,18 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  late GooglePlace googlePlace;
   final _formKey = GlobalKey<FormState>();
 
   String query = "";
   List<AutocompletePrediction> predictions = [];
+
+  @override
+  void initState() {
+    String apiKey = "AIzaSyCToBkOxFVnl5zcLdgR99Oj7Bs7KM3ccPM";
+    googlePlace = GooglePlace(apiKey);
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,9 +127,7 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(
-            height: 20,
-          ),
+          const SizedBox(height: 20),
           const Text(
               "Your search too, try finding your city's weather anywhere, at anytime",
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
@@ -136,44 +144,13 @@ class _HomePageState extends State<HomePage> {
                       decoration: const InputDecoration(
                           hintText: "Ex. London, New York, Paris",
                           labelText: "Search a city name"),
-                      onChanged: (value) {
-                        if (value.isNotEmpty) {
-                          autoComplete(value);
-                        } else {
-                          if (predictions.isNotEmpty && mounted) {
-                            setState(() {
-                              predictions = [];
-                            });
-                          }
-                        }
-                      },
+                      onChanged: (value) => query = value,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return "You cant leave the field empty";
                         }
                         return null;
                       },
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 50,
-                      child: Expanded(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: predictions.length,
-                          itemBuilder: (context, index) {
-                            return ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(
-                                  Icons.pin_drop,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              title: Text(predictions[index].description!),
-                            );
-                          },
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 10),
                     ElevatedButton(
@@ -184,7 +161,7 @@ class _HomePageState extends State<HomePage> {
                                     content:
                                         Text("Searching for the weather...")));
                             setState(() {
-                              futureCity = fetchWeather(query);
+                              futureCity = fetchWeather(query.toString());
                               const WeatherDisplay();
                             });
                             Navigator.push(
@@ -197,19 +174,45 @@ class _HomePageState extends State<HomePage> {
                         child: const Text("Submit"))
                   ],
                 )),
-          )
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: predictions.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(
+                      Icons.pin_drop,
+                      color: Colors.white,
+                    ),
+                  ),
+                  title: Text(predictions[index].description!),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 
-  void autoComplete(String input) async {
-    String apiKey = dotenv.get('API_KEY');
-    var googlePlace = GooglePlace(apiKey);
-    var result = await googlePlace.autocomplete.get("1600 Amphitheatre");
+  void autoComplete(String value) async {
+    var result = await googlePlace.queryAutocomplete.get(value);
     if (result != null && result.predictions != null && mounted) {
       setState(() {
         predictions = result.predictions!;
+        print(predictions);
+      });
+    }
+  }
+
+  void getPhoto(String photoReference) async {
+    var result = await googlePlace.photos.get(photoReference, 400, 400);
+    if (result != null && mounted) {
+      setState(() {
+        //images.add(result);
       });
     }
   }
@@ -274,14 +277,14 @@ class WeatherDisplayState extends State<WeatherDisplay> {
                   const SizedBox(height: 30),
                   Row(
                     children: [
-                      const BoxedIcon(WeatherIcons.day_sunny),
+                      BoxedIcon(WeatherIcons.day_sunny),
                       Text(
                         '${snapshot.data!.temp.round().toString()}°c',
                         style: mainStyle,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 75),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
